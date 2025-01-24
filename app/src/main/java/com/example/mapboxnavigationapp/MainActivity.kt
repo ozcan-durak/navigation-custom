@@ -1,26 +1,17 @@
 package com.example.mapboxnavigationapp
 
 import android.graphics.BitmapFactory
-import androidx.activity.enableEdgeToEdge
-import com.mapbox.common.MapboxOptions
 import com.mapbox.maps.Style
 import com.mapbox.maps.extension.style.layers.generated.lineLayer
 import com.mapbox.maps.extension.style.sources.generated.geoJsonSource
-import com.mapbox.maps.plugin.annotation.annotations
-import com.mapbox.maps.plugin.annotation.generated.PointAnnotationOptions
-import com.mapbox.maps.plugin.annotation.generated.createPointAnnotationManager
 import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
 import com.mapbox.maps.extension.style.layers.properties.generated.LineCap
 import com.mapbox.maps.extension.style.layers.properties.generated.LineJoin
 import com.mapbox.maps.extension.style.style
 import com.mapbox.maps.plugin.animation.camera
-import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
 import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 import com.mapbox.navigation.ui.maps.route.line.model.RouteLineColorResources
-import java.io.IOException
-import java.nio.charset.Charset
-
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
@@ -41,14 +32,14 @@ import com.mapbox.maps.extension.style.expressions.dsl.generated.format
 import com.mapbox.maps.extension.style.expressions.dsl.generated.get
 import com.mapbox.maps.extension.style.expressions.generated.Expression.Companion.interpolate
 import com.mapbox.maps.extension.style.image.image
+import com.mapbox.maps.extension.style.layers.addLayer
+import com.mapbox.maps.extension.style.layers.generated.SymbolLayer
 import com.mapbox.maps.extension.style.layers.generated.symbolLayer
 import com.mapbox.maps.extension.style.layers.properties.generated.TextAnchor
+import com.mapbox.maps.extension.style.sources.addSource
+import com.mapbox.maps.extension.style.sources.generated.GeoJsonSource
 import com.mapbox.maps.plugin.LocationPuck2D
-import com.mapbox.maps.plugin.animation.camera
-import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
-import com.mapbox.maps.plugin.locationcomponent.location
 import com.mapbox.navigation.base.ExperimentalPreviewMapboxNavigationAPI
-import com.mapbox.navigation.base.extensions.applyDefaultNavigationOptions
 import com.mapbox.navigation.base.options.NavigationOptions
 import com.mapbox.navigation.base.route.NavigationRoute
 import com.mapbox.navigation.base.route.NavigationRouterCallback
@@ -57,7 +48,6 @@ import com.mapbox.navigation.core.MapboxNavigation
 import com.mapbox.navigation.core.directions.session.RoutesObserver
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationApp
 import com.mapbox.navigation.core.lifecycle.MapboxNavigationObserver
-import com.mapbox.navigation.core.lifecycle.requireMapboxNavigation
 import com.mapbox.navigation.core.replay.route.ReplayProgressObserver
 import com.mapbox.navigation.core.replay.route.ReplayRouteMapper
 import com.mapbox.navigation.core.trip.session.LocationMatcherResult
@@ -126,53 +116,62 @@ class MainActivity : ComponentActivity() {
                 .build()
         )
 
-        // Initialize location puck using navigationLocationProvider as its data source
-        mapView.location.apply {
-            setLocationProvider(navigationLocationProvider)
-            locationPuck = LocationPuck2D()
-            enabled = true
-        }
-
         setContentView(mapView)
 
-        mapView.mapboxMap.loadStyle(
-            (
-                    style(style = Style.STANDARD) {
-                        +image("poi-marker") {
-                            bitmap(BitmapFactory.decodeResource(resources, R.drawable.marker))
-                        }
-                        +geoJsonSource("line") {
-                            data("asset://road_geojson.geojson")
-                        }
-                        +lineLayer("roadlayer", "line") {
-                            lineCap(LineCap.ROUND)
-                            lineJoin(LineJoin.ROUND)
-                            lineOpacity(0.5)
-                            lineWidth(6.0)
-                            lineColor("#6ba6f4")
-                        }
-                        +geoJsonSource("poi") {
-                            data("asset://poi.geojson")
-                        }
-                        +symbolLayer("poilayer", "poi") {
-                            iconImage("poi-marker")
-                            iconSize(0.1)
-                            textField(
-                                format {
-                                    formatSection(
-                                        get("english_na")
-                                    ) {
-                                        fontScale(1.2)
-                                    }
-                                }
-                            )
-                            textOffset(listOf(0.0, 0.5))
-                            textAnchor(TextAnchor.TOP)
-                            textColor("#000000")
+        mapView.mapboxMap.loadStyle((style(style = Style.STANDARD) {
+            +image("poi-marker") {
+                bitmap(BitmapFactory.decodeResource(resources, R.drawable.marker))
+            }
+            +geoJsonSource("line") {
+                data("asset://road_geojson.geojson")
+            }
+            +lineLayer("roadlayer", "line") {
+                lineCap(LineCap.ROUND)
+                lineJoin(LineJoin.ROUND)
+                lineOpacity(0.5)
+                lineWidth(6.0)
+                lineColor("#6ba6f4")
+            }
+            +geoJsonSource("poi") {
+                data("asset://poi.geojson")
+            }
+            +symbolLayer("poilayer", "poi") {
+                iconImage("poi-marker")
+                iconSize(0.1)
+                textField(
+                    format {
+                        formatSection(
+                            get("english_na")
+                        ) {
+                            fontScale(0.8)
                         }
                     }
-                    )
-        )
+                )
+                textOffset(listOf(0.0, 0.5))
+                textAnchor(TextAnchor.TOP)
+                textColor("#000000")
+            }
+        })) { style ->
+
+            // Add the custom marker image to the style
+            style.addImage(
+                "destination-marker-id",
+                BitmapFactory.decodeResource(resources, R.drawable.destination)
+            )
+            // Create a GeoJsonSource for the destination point
+            val destinationGeoJsonSource = GeoJsonSource.Builder("destination-source-id")
+                .geometry(Point.fromLngLat(58.540308435717655, 23.619492521181034))
+                .build()
+            style.addSource(destinationGeoJsonSource)
+
+            // Create a SymbolLayer for the destination marker
+            val destinationSymbolLayer = SymbolLayer("destination-symbol-layer-id", "destination-source-id")
+                .iconImage("destination-marker-id")
+                .iconSize(0.2)
+                .iconAllowOverlap(true)
+                .iconIgnorePlacement(true)
+            style.addLayer(destinationSymbolLayer)
+        }
 
         // set viewportDataSource, which tells the navigationCamera where to look
         viewportDataSource = MapboxNavigationViewportDataSource(mapView.mapboxMap)
@@ -203,7 +202,6 @@ class MainActivity : ComponentActivity() {
 
         // Initialize route line api and view for drawing the route on the map
         routeLineApi = MapboxRouteLineApi(MapboxRouteLineApiOptions.Builder().build())
-//        routeLineView = MapboxRouteLineView(MapboxRouteLineViewOptions.Builder(this).build())
         routeLineView = MapboxRouteLineView(customRouteLineViewOptions)
     }
 
@@ -277,11 +275,26 @@ class MainActivity : ComponentActivity() {
         // initialize location puck
         mapView.location.apply {
             setLocationProvider(navigationLocationProvider)
-            this.locationPuck = createDefault2DPuck()
-//            this.locationPuck = LocationPuck2D()
+            this.locationPuck = LocationPuck2D(
+                topImage = ImageHolder.from(R.drawable.arrow),
+                bearingImage = null,
+                shadowImage = null,
+                scaleExpression = interpolate {
+                    linear()
+                    zoom()
+                    stop {
+                        literal(0.0)
+                        literal(0.6)
+                    }
+                    stop {
+                        literal(20.0)
+                        literal(1.0)
+                    }
+                }.toJson()
+            )
+            enabled = true
             pulsingEnabled = true
             puckBearingEnabled = true
-            enabled = true
         }
 
         val origin = Point.fromLngLat(58.55893798021273, 23.58488915355878)
