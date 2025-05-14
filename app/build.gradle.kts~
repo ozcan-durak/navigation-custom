@@ -59,7 +59,6 @@ dependencies {
     implementation("com.mapbox.navigationcore:ui-components:3.6.0")
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.appcompat)
-    implementation(libs.androidx.cardview)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
